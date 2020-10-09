@@ -1,10 +1,14 @@
-FROM openjdk:12-alpine
+FROM maven:3-openjdk-11 AS base
 
-RUN addgroup -S ids && adduser -S -g ids ids
-WORKDIR /home/app/
-RUN chown -R ids: ./ && chmod -R u+w ./
-RUN mkdir -p /ids/repo/ && chown -R ids: /ids/repo/ && chmod -R u+w /ids/repo/
-COPY /target/odc-config-manager-1.1.0-SNAPSHOT-fat.jar .
-EXPOSE 8080
-USER ids
-ENTRYPOINT ["java", "-jar", "./odc-config-manager-1.1.0-SNAPSHOT-fat.jar"]
+FROM base AS build
+
+COPY src /build/src
+COPY pom.xml /build/pom.xml
+WORKDIR /build
+RUN mvn package
+
+FROM base AS deploy
+COPY --from=build /build/target/odc-config-manager-*-fat.jar /home/app/odc-config-manager.jar
+WORKDIR /home/app
+
+ENTRYPOINT ["java", "-jar", "odc-config-manager.jar"]
